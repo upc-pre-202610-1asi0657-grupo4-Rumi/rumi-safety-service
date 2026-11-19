@@ -99,6 +99,91 @@ final class OpenApiExamples {
               "instance": "/api/v1/checklists/templates/current"
             }""";
 
+    static final String SAMPLE_RESIDENT_ID = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+
+    static final String SUBMIT_RESPONSE_REQUEST = """
+            {
+              "templateId": "b1b2c3d4-0001-4000-8000-000000000001",
+              "buildingId": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d",
+              "answers": [
+                { "itemId": "b1b2c3d4-0002-4000-8000-000000000001", "checked": false },
+                { "itemId": "b1b2c3d4-0002-4000-8000-000000000002", "checked": true },
+                { "itemId": "b1b2c3d4-0002-4000-8000-000000000003", "checked": false }
+              ]
+            }""";
+
+    static final String SUBMITTED_RESPONSE = """
+            {
+              "id": "c1b2c3d4-0001-4000-8000-000000000001",
+              "templateId": "b1b2c3d4-0001-4000-8000-000000000001",
+              "residentUserId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+              "buildingId": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d",
+              "submittedAt": "2026-11-20T15:05:00Z",
+              "answers": [
+                { "itemId": "b1b2c3d4-0002-4000-8000-000000000001", "checked": false },
+                { "itemId": "b1b2c3d4-0002-4000-8000-000000000002", "checked": true },
+                { "itemId": "b1b2c3d4-0002-4000-8000-000000000003", "checked": false }
+              ]
+            }""";
+
+    static final String USER_ID_REQUIRED = """
+            {
+              "type": "about:blank",
+              "title": "Bad Request",
+              "status": 400,
+              "detail": "X-User-Id header is required",
+              "instance": "/api/v1/checklists/responses"
+            }""";
+
+    static final String USER_ID_MALFORMED = """
+            {
+              "type": "about:blank",
+              "title": "Bad Request",
+              "status": 400,
+              "detail": "X-User-Id must be a valid UUID",
+              "instance": "/api/v1/checklists/responses"
+            }""";
+
+    static final String INVALID_BODY = """
+            {
+              "type": "about:blank",
+              "title": "Bad Request",
+              "status": 400,
+              "detail": "answers must not be empty; templateId must not be null",
+              "instance": "/api/v1/checklists/responses",
+              "errors": {
+                "answers": "must not be empty",
+                "templateId": "must not be null"
+              }
+            }""";
+
+    static final String MISSING_ITEM = """
+            {
+              "type": "about:blank",
+              "title": "Bad Request",
+              "status": 400,
+              "detail": "answers must cover every item of the template; missing items: b1b2c3d4-0002-4000-8000-000000000003",
+              "instance": "/api/v1/checklists/responses"
+            }""";
+
+    static final String REPEATED_ITEM = """
+            {
+              "type": "about:blank",
+              "title": "Bad Request",
+              "status": 400,
+              "detail": "item b1b2c3d4-0002-4000-8000-000000000001 is answered more than once",
+              "instance": "/api/v1/checklists/responses"
+            }""";
+
+    static final String UNKNOWN_TEMPLATE = """
+            {
+              "type": "about:blank",
+              "title": "Not Found",
+              "status": 404,
+              "detail": "checklist template 9c0e8f3a-1b2d-4e5f-8a6b-7c8d9e0f1a2b does not exist",
+              "instance": "/api/v1/checklists/responses"
+            }""";
+
     private OpenApiExamples() {
     }
 }
