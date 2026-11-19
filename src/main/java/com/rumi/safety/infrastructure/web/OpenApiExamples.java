@@ -66,6 +66,39 @@ final class OpenApiExamples {
               "instance": "/api/v1/evacuation-plans"
             }""";
 
+    static final String CHECKLIST_TEMPLATE = """
+            {
+              "id": "b1b2c3d4-0001-4000-8000-000000000001",
+              "name": "POST_EARTHQUAKE_SELF_CHECK",
+              "version": 1,
+              "items": [
+                {
+                  "id": "b1b2c3d4-0002-4000-8000-000000000001",
+                  "position": 1,
+                  "label": "Gas: do you smell gas or hear a leak?"
+                },
+                {
+                  "id": "b1b2c3d4-0002-4000-8000-000000000002",
+                  "position": 2,
+                  "label": "Cracks: do you see new cracks in walls, floors or columns?"
+                },
+                {
+                  "id": "b1b2c3d4-0002-4000-8000-000000000003",
+                  "position": 3,
+                  "label": "Electricity: are there exposed wires, sparks or a power failure?"
+                }
+              ]
+            }""";
+
+    static final String NO_TEMPLATE = """
+            {
+              "type": "about:blank",
+              "title": "Not Found",
+              "status": 404,
+              "detail": "no checklist template exists",
+              "instance": "/api/v1/checklists/templates/current"
+            }""";
+
     private OpenApiExamples() {
     }
 }
