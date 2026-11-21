@@ -2,7 +2,7 @@
     "openapi": "3.1.0",
     "info": {
         "title": "Rumi Safety Service API",
-        "description": "REST API of the Resident Safety bounded context. Skeleton: only the health endpoint exists; functionality is planned for later sprints.",
+        "description": "REST API of the Resident Safety bounded context: evacuation plans of buildings (US19) and the post-earthquake self-check of residents (US20). It sits behind the API gateway, which validates the JWT and forwards the caller in the X-User-Id, X-Role and X-Building-Id headers. Errors are RFC 7807 problem details.",
         "version": "0.1.0"
     },
     "servers": [
@@ -15,9 +15,330 @@
         {
             "name": "Health",
             "description": "Liveness of the service skeleton"
+        },
+        {
+            "name": "Evacuation plans",
+            "description": "Evacuation routes and safe points of a building (US19)"
+        },
+        {
+            "name": "Checklists",
+            "description": "Post-earthquake self-check of residents (US20)"
         }
     ],
     "paths": {
+        "/api/v1/checklists/responses": {
+            "post": {
+                "tags": [
+                    "Checklists"
+                ],
+                "summary": "Submit a post-earthquake checklist",
+                "description": "US20. Saves the answers of the calling resident to a checklist template. The resident is taken from the X-User-Id header, which the API gateway sets after validating the JWT. The answers must cover every item of the template exactly once; they are returned in the order of the template items. The building id is not checked against other services.",
+                "operationId": "submitResponse",
+                "parameters": [
+                    {
+                        "name": "X-User-Id",
+                        "in": "header",
+                        "description": "Id of the calling resident, set by the API gateway from the JWT",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "example": "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
+                    }
+                ],
+                "requestBody": {
+                    "description": "Template, building and one answer per item of the template",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SubmitChecklistResponseRequest"
+                            },
+                            "examples": {
+                                "Cracks observed": {
+                                    "description": "Cracks observed",
+                                    "value": {
+                                        "templateId": "b1b2c3d4-0001-4000-8000-000000000001",
+                                        "buildingId": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d",
+                                        "answers": [
+                                            {
+                                                "itemId": "b1b2c3d4-0002-4000-8000-000000000001",
+                                                "checked": false
+                                            },
+                                            {
+                                                "itemId": "b1b2c3d4-0002-4000-8000-000000000002",
+                                                "checked": true
+                                            },
+                                            {
+                                                "itemId": "b1b2c3d4-0002-4000-8000-000000000003",
+                                                "checked": false
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The response was saved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChecklistResponse"
+                                },
+                                "examples": {
+                                    "Saved response": {
+                                        "description": "Saved response",
+                                        "value": {
+                                            "id": "c1b2c3d4-0001-4000-8000-000000000001",
+                                            "templateId": "b1b2c3d4-0001-4000-8000-000000000001",
+                                            "residentUserId": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+                                            "buildingId": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d",
+                                            "submittedAt": "2026-11-20T15:05:00Z",
+                                            "answers": [
+                                                {
+                                                    "itemId": "b1b2c3d4-0002-4000-8000-000000000001",
+                                                    "checked": false
+                                                },
+                                                {
+                                                    "itemId": "b1b2c3d4-0002-4000-8000-000000000002",
+                                                    "checked": true
+                                                },
+                                                {
+                                                    "itemId": "b1b2c3d4-0002-4000-8000-000000000003",
+                                                    "checked": false
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "X-User-Id is missing or malformed, the body is invalid, or the answers do not cover every item of the template exactly once",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Missing X-User-Id": {
+                                        "description": "Missing X-User-Id",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Bad Request",
+                                            "status": 400,
+                                            "detail": "X-User-Id header is required",
+                                            "instance": "/api/v1/checklists/responses"
+                                        }
+                                    },
+                                    "Malformed X-User-Id": {
+                                        "description": "Malformed X-User-Id",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Bad Request",
+                                            "status": 400,
+                                            "detail": "X-User-Id must be a valid UUID",
+                                            "instance": "/api/v1/checklists/responses"
+                                        }
+                                    },
+                                    "Invalid body": {
+                                        "description": "Invalid body",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Bad Request",
+                                            "status": 400,
+                                            "detail": "answers must not be empty; templateId must not be null",
+                                            "instance": "/api/v1/checklists/responses",
+                                            "errors": {
+                                                "answers": "must not be empty",
+                                                "templateId": "must not be null"
+                                            }
+                                        }
+                                    },
+                                    "Item not answered": {
+                                        "description": "Item not answered",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Bad Request",
+                                            "status": 400,
+                                            "detail": "answers must cover every item of the template; missing items: b1b2c3d4-0002-4000-8000-000000000003",
+                                            "instance": "/api/v1/checklists/responses"
+                                        }
+                                    },
+                                    "Item answered twice": {
+                                        "description": "Item answered twice",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Bad Request",
+                                            "status": 400,
+                                            "detail": "item b1b2c3d4-0002-4000-8000-000000000001 is answered more than once",
+                                            "instance": "/api/v1/checklists/responses"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The template does not exist",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Unknown template": {
+                                        "description": "Unknown template",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Not Found",
+                                            "status": 404,
+                                            "detail": "checklist template 9c0e8f3a-1b2d-4e5f-8a6b-7c8d9e0f1a2b does not exist",
+                                            "instance": "/api/v1/checklists/responses"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/evacuation-plans": {
+            "get": {
+                "tags": [
+                    "Evacuation plans"
+                ],
+                "summary": "Get the evacuation plan of a building",
+                "description": "US19. Returns the latest version of the evacuation plan of the building, with its evacuation routes (ordered by description) and its safe points (ordered by name). The building id is not checked against the Building Management service.",
+                "operationId": "getPlan",
+                "parameters": [
+                    {
+                        "name": "buildingId",
+                        "in": "query",
+                        "description": "Id of the building whose plan is requested",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "example": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The evacuation plan of the building",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EvacuationPlan"
+                                },
+                                "examples": {
+                                    "Plan of the sample building": {
+                                        "description": "Plan of the sample building",
+                                        "value": {
+                                            "id": "a1b2c3d4-0001-4000-8000-000000000001",
+                                            "buildingId": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d",
+                                            "version": 1,
+                                            "updatedAt": "2026-11-20T15:00:00Z",
+                                            "routes": [
+                                                {
+                                                    "id": "a1b2c3d4-0002-4000-8000-000000000001",
+                                                    "description": "Main stairs, north wing",
+                                                    "mapUrl": "https://maps.example.com/rumi/routes/main-stairs.png"
+                                                },
+                                                {
+                                                    "id": "a1b2c3d4-0002-4000-8000-000000000002",
+                                                    "description": "Rear exit to the courtyard",
+                                                    "mapUrl": "https://maps.example.com/rumi/routes/rear-exit.png"
+                                                }
+                                            ],
+                                            "safePoints": [
+                                                {
+                                                    "id": "a1b2c3d4-0003-4000-8000-000000000002",
+                                                    "name": "Meeting point: courtyard",
+                                                    "location": {
+                                                        "latitude": -12.0466,
+                                                        "longitude": -77.0431
+                                                    }
+                                                },
+                                                {
+                                                    "id": "a1b2c3d4-0003-4000-8000-000000000001",
+                                                    "name": "Meeting point: park in front of the building",
+                                                    "location": {
+                                                        "latitude": -12.0464,
+                                                        "longitude": -77.0428
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "buildingId is missing or is not a valid UUID",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "Missing buildingId": {
+                                        "description": "Missing buildingId",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Bad Request",
+                                            "status": 400,
+                                            "detail": "buildingId is required",
+                                            "instance": "/api/v1/evacuation-plans"
+                                        }
+                                    },
+                                    "Malformed buildingId": {
+                                        "description": "Malformed buildingId",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Bad Request",
+                                            "status": 400,
+                                            "detail": "buildingId must be a valid UUID",
+                                            "instance": "/api/v1/evacuation-plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The building has no evacuation plan",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "No plan": {
+                                        "description": "No plan",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Not Found",
+                                            "status": 404,
+                                            "detail": "building 0b6c7e2a-9d1f-4c3b-8a5e-2f4d6b8c0e1a has no evacuation plan",
+                                            "instance": "/api/v1/evacuation-plans"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/evacuation-plans/health": {
             "get": {
                 "tags": [
@@ -48,10 +369,308 @@
                     }
                 }
             }
+        },
+        "/api/v1/checklists/templates/current": {
+            "get": {
+                "tags": [
+                    "Checklists"
+                ],
+                "summary": "Get the current checklist template",
+                "description": "US20. Returns the post-earthquake checklist residents must answer: the template with the highest version, with its items ordered by position. The default template POST_EARTHQUAKE_SELF_CHECK is seeded on startup when no template exists.",
+                "operationId": "getCurrentTemplate",
+                "responses": {
+                    "200": {
+                        "description": "The current checklist template",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChecklistTemplate"
+                                },
+                                "examples": {
+                                    "Default template": {
+                                        "description": "Default template",
+                                        "value": {
+                                            "id": "b1b2c3d4-0001-4000-8000-000000000001",
+                                            "name": "POST_EARTHQUAKE_SELF_CHECK",
+                                            "version": 1,
+                                            "items": [
+                                                {
+                                                    "id": "b1b2c3d4-0002-4000-8000-000000000001",
+                                                    "position": 1,
+                                                    "label": "Gas: do you smell gas or hear a leak?"
+                                                },
+                                                {
+                                                    "id": "b1b2c3d4-0002-4000-8000-000000000002",
+                                                    "position": 2,
+                                                    "label": "Cracks: do you see new cracks in walls, floors or columns?"
+                                                },
+                                                {
+                                                    "id": "b1b2c3d4-0002-4000-8000-000000000003",
+                                                    "position": 3,
+                                                    "label": "Electricity: are there exposed wires, sparks or a power failure?"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No checklist template exists",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetail"
+                                },
+                                "examples": {
+                                    "No template": {
+                                        "description": "No template",
+                                        "value": {
+                                            "type": "about:blank",
+                                            "title": "Not Found",
+                                            "status": 404,
+                                            "detail": "no checklist template exists",
+                                            "instance": "/api/v1/checklists/templates/current"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
         "schemas": {
+            "ChecklistAnswer": {
+                "type": "object",
+                "description": "The answer of the resident to one item of the checklist",
+                "properties": {
+                    "itemId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the template item being answered",
+                        "example": "b1b2c3d4-0002-4000-8000-000000000001"
+                    },
+                    "checked": {
+                        "type": "boolean",
+                        "description": "true when the resident observed the hazard of the item",
+                        "example": false
+                    }
+                },
+                "required": [
+                    "checked",
+                    "itemId"
+                ]
+            },
+            "SubmitChecklistResponseRequest": {
+                "type": "object",
+                "description": "Answers of a resident to the post-earthquake checklist",
+                "properties": {
+                    "templateId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the template being answered",
+                        "example": "b1b2c3d4-0001-4000-8000-000000000001"
+                    },
+                    "buildingId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the building of the resident (Building Management context)",
+                        "example": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d"
+                    },
+                    "answers": {
+                        "type": "array",
+                        "description": "One answer for every item of the template, each item exactly once",
+                        "items": {
+                            "$ref": "#/components/schemas/ChecklistAnswer"
+                        },
+                        "minItems": 1
+                    }
+                },
+                "required": [
+                    "answers",
+                    "buildingId",
+                    "templateId"
+                ]
+            },
+            "ChecklistResponse": {
+                "type": "object",
+                "description": "A checklist submitted by a resident",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the saved response",
+                        "example": "c1b2c3d4-0001-4000-8000-000000000001"
+                    },
+                    "templateId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the answered template",
+                        "example": "b1b2c3d4-0001-4000-8000-000000000001"
+                    },
+                    "residentUserId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the resident, taken from the X-User-Id header",
+                        "example": "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
+                    },
+                    "buildingId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the building",
+                        "example": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d"
+                    },
+                    "submittedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When the response was saved, in UTC",
+                        "example": "2026-11-20T15:05:00Z"
+                    },
+                    "answers": {
+                        "type": "array",
+                        "description": "Answers in the order of the template items",
+                        "items": {
+                            "$ref": "#/components/schemas/ChecklistAnswer"
+                        }
+                    }
+                }
+            },
+            "ProblemDetail": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "instance": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "properties": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                }
+            },
+            "EvacuationPlan": {
+                "type": "object",
+                "description": "Evacuation plan of a building with its routes and safe points",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the plan",
+                        "example": "a1b2c3d4-0001-4000-8000-000000000001"
+                    },
+                    "buildingId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the building (Building Management context)",
+                        "example": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d"
+                    },
+                    "version": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Version of the plan; the latest version is returned",
+                        "example": 1
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Last update of the plan, in UTC",
+                        "example": "2026-11-20T15:00:00Z"
+                    },
+                    "routes": {
+                        "type": "array",
+                        "description": "Evacuation routes, ordered by description",
+                        "items": {
+                            "$ref": "#/components/schemas/EvacuationRoute"
+                        }
+                    },
+                    "safePoints": {
+                        "type": "array",
+                        "description": "Safe points, ordered by name",
+                        "items": {
+                            "$ref": "#/components/schemas/SafePoint"
+                        }
+                    }
+                }
+            },
+            "EvacuationRoute": {
+                "type": "object",
+                "description": "A route residents follow to leave the building",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the route",
+                        "example": "a1b2c3d4-0002-4000-8000-000000000001"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "How to follow the route",
+                        "example": "Main stairs, north wing"
+                    },
+                    "mapUrl": {
+                        "type": "string",
+                        "description": "Image of the route on the floor map; null when there is none",
+                        "example": "https://maps.example.com/rumi/routes/main-stairs.png"
+                    }
+                }
+            },
+            "GeoPoint": {
+                "type": "object",
+                "description": "Geographic coordinates in decimal degrees",
+                "properties": {
+                    "latitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Latitude, between -90 and 90",
+                        "example": -12.0464
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Longitude, between -180 and 180",
+                        "example": -77.0428
+                    }
+                }
+            },
+            "SafePoint": {
+                "type": "object",
+                "description": "A place where residents gather after leaving the building",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the safe point",
+                        "example": "a1b2c3d4-0003-4000-8000-000000000001"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the safe point",
+                        "example": "Meeting point: park in front of the building"
+                    },
+                    "location": {
+                        "$ref": "#/components/schemas/GeoPoint",
+                        "description": "Location of the safe point; null when it is not known"
+                    }
+                }
+            },
             "HealthResponse": {
                 "type": "object",
                 "description": "Liveness information of the service",
@@ -65,6 +684,59 @@
                         "type": "string",
                         "description": "Name of the service",
                         "example": "rumi-safety-service"
+                    }
+                }
+            },
+            "ChecklistItem": {
+                "type": "object",
+                "description": "One question of the checklist",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the item; send it back as itemId in the answers",
+                        "example": "b1b2c3d4-0002-4000-8000-000000000001"
+                    },
+                    "position": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Order in which the item is shown, starting at 1",
+                        "example": 1
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Question shown to the resident",
+                        "example": "Gas: do you smell gas or hear a leak?"
+                    }
+                }
+            },
+            "ChecklistTemplate": {
+                "type": "object",
+                "description": "Checklist residents answer after an earthquake",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Id of the template; send it back as templateId in the response",
+                        "example": "b1b2c3d4-0001-4000-8000-000000000001"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the template",
+                        "example": "POST_EARTHQUAKE_SELF_CHECK"
+                    },
+                    "version": {
+                        "type": "integer",
+                        "format": "int32",
+                        "description": "Version of the template; the highest version is the current one",
+                        "example": 1
+                    },
+                    "items": {
+                        "type": "array",
+                        "description": "Items ordered by position",
+                        "items": {
+                            "$ref": "#/components/schemas/ChecklistItem"
+                        }
                     }
                 }
             }
