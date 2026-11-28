@@ -108,8 +108,8 @@ With PostgreSQL (default profile):
 ./mvnw spring-boot:run
 ```
 
-The default profile uses `ddl-auto: validate`, as the other Rumi services: the tables of
-`er_06_evacuation_db` must already exist in `evacuationdb`.
+The default profile uses `ddl-auto: validate`, as the other Rumi services: create `evacuationdb` and its
+tables with [`docs/schema.sql`](docs/schema.sql) first.
 
 | Variable | Default |
 |---|---|
